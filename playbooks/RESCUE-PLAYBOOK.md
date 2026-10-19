@@ -167,8 +167,8 @@ Portable upgrades:
 ## Wormhole 2026-10-12 — rescue technique chain (focus 3)
 
 Seven hops, all web-sourced (untrusted channel), filed as techniques not
-facts. Full chain log:
-`~/workspace/goals/limit-break-incident-monitor-and-rescue-playbook/hidden_files/wormhole-2026-10-12-technique-chain.md`.
+facts. (The full chain log is an unpublished working note and is not in
+this repo.)
 
 **T1 — Rescue txs never touch the public mempool.** The Yoink/Kelp case
 (~Sep 2026) is the proof from both sides: an attacker broadcast a $7.7M

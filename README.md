@@ -1,11 +1,12 @@
 # graveyard
 
-**A defensive map of an attack surface that standard taxonomies cannot see.**
+**A defensive map of an attack surface that public incident databases don't break out.**
 
 Dormant DeFi contracts with stranded value — deprecated, immutable, unpausable,
-but still funded and still callable — are an unmapped attack surface. Exploit
-databases have **no "zombie contract" category**: the class is invisible in the
-standard taxonomies, so the risk is systematically under-counted. This repo is
+but still funded and still callable — are a poorly mapped attack surface.
+The public incident databases we checked record these incidents, but none has a
+dormant-contract category you can filter on, so the class is hard to count
+(details and dates below; we haven't measured an under-count). This repo is
 the defensive response: live detection monitors, the whitehat rescue
 methodology, and the research behind the pattern of the race.
 
@@ -15,6 +16,13 @@ frozen and immutable: **time**. The copycat window after a first exploit is
 short — often hours, sometimes a single block (~24s). Nothing here prevents an
 exploit. Everything here exists to see the race start and spend that window
 well: warn holders, trigger a whitehat rescue, raise the next alarm.
+
+**What we checked, and when** (Mon Oct 19, 2026, CT):
+- **DeFiHackLabs** (`SunWeb3Sec/DeFiHackLabs` at `7363f76`, README.md plus `past/*/README.md`): there is no category field; each of the 895 entries is titled with a free-text root cause. 3 of those titles describe a dormant, abandoned or legacy contract (one more matched only because a project is named "...Zombie").
+- **SlowMist Hacked** (hacked.slowmist.io and its statistics page): 2312 events, filterable by 20 chain/sector categories (ETH Ecosystem, Bridge, Wallet, NFT, Other, ...), with a free-text attack method per event. None of the 20 categories or the 10 most common attack methods is dormant, zombie or deprecated. A 2026-10-06 incident whose description calls the drained contract "dormant" is filed as "Smart Contract Vulnerability".
+- **rekt.news** (leaderboard page data): 328 entries with 413 distinct free-form tags. No tag says zombie, dormant or deprecated; 1 entry is tagged "legacy code".
+
+We didn't check other taxonomies (for example the SWC registry, Immunefi's or DASP's classifications), so this is a statement about these three, not about all of them.
 
 ## Setup
 
@@ -102,6 +110,8 @@ victim wallets are redacted; the method stays.
   self-test needs real Set V1 addresses, so it fails on the placeholder example
   file. The snapshot and proxy monitors have no canary yet, so their zeros are not
   canary-gated.
+- CI (`.github/workflows/canaries.yml`) runs both canaries on every push and pull
+  request. It does not run the live monitors (they need RPC endpoints and targets).
 
 ## License
 
