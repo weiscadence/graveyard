@@ -14,7 +14,7 @@ Paged the full direct-tx history of the Ethereum V2 contract
 `next_page_params`), filtered to the incident window 2026-10-14T00:00Z–
 2026-10-16T12:00Z, grouped by wallet, and ran the monitor's own
 `is_exploit_sequence()` (create+release+cancel within 24h) over each wallet.
-Repro: `/tmp/uncx_backtest.py` (imports the detector from `uncx_watch.py`).
+Repro: `(backtest harness run offline; not shipped — point uncx_watch.py at your own targets)` (imports the detector from `uncx_watch.py`).
 
 ## Findings
 

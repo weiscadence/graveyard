@@ -16,6 +16,12 @@ short — often hours, sometimes a single block (~24s). Nothing here prevents an
 exploit. Everything here exists to see the race start and spend that window
 well: warn holders, trigger a whitehat rescue, raise the next alarm.
 
+## Setup
+
+```bash
+pip install -r requirements.txt   # pycryptodome (canary), requests (>16KB RPC responses)
+```
+
 ## What this is
 
 - **Detection** — read-only, keyless watch scripts that fingerprint known
