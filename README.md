@@ -63,7 +63,9 @@ rotation; see `rpc_rotation.py`). **Every monitor states what it cannot see.**
 ```bash
 cd monitors
 python3 classifier_canary.py   # 7/7 against October 2026 ground truth
-python3 uncx_watch.py          # reads uncx-targets.example.json; exit 0 = clean, 2 = alert
+python3 uncx_exit_canary.py    # 6/6: a zero only counts as clean when it was earned
+python3 uncx_watch.py          # reads uncx-targets.example.json; exit 0 = clean, 2 = alert,
+                               # 3 = incomplete (a chain errored or 0 txs checked; not clean)
 ```
 
 The monitors read their targets from `*-targets.example.json`. **The live
@@ -94,8 +96,12 @@ victim wallets are redacted; the method stays.
 - Coverage gaps are documented in the scripts (archive gating, no-public-RPC
   chains, intermediary-routed calls invisible to tx lists).
 - Research marked DRAFT is draft. The paper is not finished.
-- Every claim names the command that would falsify it; canary inputs with known
-  answers gate every "zero findings."
+- Known-answer canaries exist for the settlement classifier
+  (`classifier_canary.py`, 7/7), for `uncx_watch`'s exit verdict
+  (`uncx_exit_canary.py`, 6/6) and for `setv1_watch.py --selftest`. The setv1
+  self-test needs real Set V1 addresses, so it fails on the placeholder example
+  file. The snapshot and proxy monitors have no canary yet, so their zeros are not
+  canary-gated.
 
 ## License
 

@@ -14,8 +14,10 @@ Target addresses load from uncx-targets.example.json (ship your own watchlist). 
 addresses are reported as PENDING and skipped. Never sends transactions.
 
 State: uncx-state.json next to this script (last-seen tx hashes per chain).
-Output: JSON report to stdout; exit 0 normally, exit 2 with "ALERT" lines when
-new suspicious activity is found.
+Output: JSON report to stdout. Exit 2 with "ALERT" lines when new suspicious
+activity is found. Exit 3 (INCOMPLETE) when there is no alert but the zero was not
+earned: a chain errored, or no polled chain returned a single tx. Exit 0 only when
+every polled chain answered and at least one tx was actually checked.
 """
 import json, subprocess, sys, os, time, datetime
 
@@ -352,8 +354,29 @@ def main():
         }
 
     json.dump(state, open(STATE, "w"), indent=1)
+    code, why = exit_code(report)
+    report["verdict"] = {0: "CLEAN", 2: "ALERT", 3: "INCOMPLETE"}[code] + (": " + why if why else "")
     print(json.dumps(report, indent=1))
-    return 2 if report["alerts"] else 0
+    if code == 3:
+        print("INCOMPLETE: " + why + " (not a clean result)", file=sys.stderr)
+    return code
+
+
+def exit_code(report):
+    """0 = clean, 2 = alert, 3 = incomplete. A zero is only clean if it was earned:
+    every polled chain answered without error and at least one tx was checked."""
+    if report.get("alerts"):
+        return 2, ""
+    chains = report.get("chains", {})
+    errored = sorted(c for c, v in chains.items() if "error" in v)
+    polled = {c: v for c, v in chains.items() if "checked" in v}
+    if errored:
+        return 3, "chain error on " + ", ".join(errored)
+    if not polled:
+        return 3, "no chain was polled"
+    if sum(v["checked"] for v in polled.values()) == 0:
+        return 3, "0 txs checked on " + ", ".join(sorted(polled))
+    return 0, ""
 
 
 if __name__ == "__main__":
