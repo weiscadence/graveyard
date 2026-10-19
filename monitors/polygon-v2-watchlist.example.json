@@ -1,0 +1,22 @@
+{
+  "_README": "SCHEMA + EXAMPLE ONLY. The live multi-actor convergence watchlist is withheld (see ../RESPONSIBLE-DISCLOSURE.md). This documents the structure used when the POLYGON-RESCUE-PLAYBOOK escalation is triggered.",
+  "_schema": {
+    "target": "string - contract under watch",
+    "chain": "string",
+    "reason": "string - why it is on the watchlist (e.g. multi-actor convergence) + who authorized the rescue",
+    "actors": "array of {label, sender, intermediary, tx, method, value_moved, time_utc, note} - observed probing actors; addresses/tx hashes are WITHHELD in the public schema",
+    "escalation_triggers": "array of strings - conditions that escalate watch -> rescue"
+  },
+  "target": "0xYOUR_WATCHED_CONTRACT",
+  "chain": "polygon",
+  "reason": "EXAMPLE: multi-actor convergence; rescue authorized by the operator",
+  "actors": [
+    { "label": "example-probe", "sender": "0xPROBING_WALLET", "intermediary": "0xINTERMEDIARY_CONTRACT", "tx": "0xTX_HASH", "method": "<decoded method>", "value_moved": "~small test amount", "time_utc": "YYYY-MM-DDTHH:MM", "note": "small test tx before a possible strike - the test-before-strike pattern" }
+  ],
+  "escalation_triggers": [
+    "Either actor returns with larger amounts",
+    "Calls to sensitive paths (sale/fill functions)",
+    "New unknown actors touching the contract",
+    "0-value sale or forced-buy pattern (RESCUE TRIGGER)"
+  ]
+}

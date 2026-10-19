@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*-state.json
+# Live target lists are never committed; only *.example.json schemas are public.
+*-targets.json
+!*-targets.example.json
+polygon-v2-watchlist.json
+inventory/

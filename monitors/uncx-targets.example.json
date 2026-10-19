@@ -1,0 +1,14 @@
+{
+  "_README": "SCHEMA + EXAMPLE ONLY. The live watchlist is not published (see ../RESPONSIBLE-DISCLOSURE.md). Copy this to uncx-targets.json and fill in addresses for the contracts YOU are authorized to monitor. uncx_watch.py reads uncx-targets.example.json by default so the tool runs out-of-the-box against your own config.",
+  "_schema": {
+    "incident": "string - human label for the incident/contract family you are watching",
+    "targets": "array of {chain, address, verified} - chain must be one of ethereum|base|bnb|robinhood (see CHAIN_SOURCES in uncx_watch.py); address = the VestingManager-style contract; verified = did you confirm code on-chain",
+    "status": "string - your current assessment"
+  },
+  "incident": "EXAMPLE: UNCX Network Vesting V2 accounting exploit (publicly disclosed 2026-10-14/15; Blockaid, ExVul, Rekt). Mechanism: createPosition -> release() -> donate -> cancel() double-counts shares. This entry documents the PUBLIC incident; the contract address is intentionally left as a placeholder.",
+  "status": "EXAMPLE - replace with your own watchlist",
+  "targets": [
+    { "chain": "ethereum", "address": "0xYOUR_VESTING_MANAGER_V2_CONTRACT", "verified": false },
+    { "chain": "base",     "address": "0xYOUR_VESTING_MANAGER_V2_CONTRACT", "verified": false }
+  ]
+}

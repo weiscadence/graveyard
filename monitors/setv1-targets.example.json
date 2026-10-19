@@ -1,0 +1,17 @@
+{
+  "_README": "SCHEMA + EXAMPLE ONLY. Live watchlist withheld (see ../RESPONSIBLE-DISCLOSURE.md). setv1_watch.py reads setv1-targets.example.json by default; copy to setv1-targets.json for your own authorized targets.",
+  "_schema": {
+    "protocol": "string",
+    "infrastructure": "map of {role: {address, note, polled}} - shared Core/TransferProxy/Vault contracts; polled=false means detection runs on the set-token legs, not this contract's top-level tx list",
+    "targets": "array of {address, chain, name, ticker, rank, hit_status, note, verified} - the rebalancing sets to watch for the actualizeFee() rounding fingerprint"
+  },
+  "protocol": "EXAMPLE: Set Protocol V1 (deprecated 2021; immutable, no pause/upgrade). Hit twice on 2026-10-06 via the permissionless actualizeFee() rounding exploit (SunWeb3Sec PoC, SlowMist). This documents the PUBLIC incident family; addresses left as placeholders.",
+  "infrastructure": {
+    "core":           { "address": "0xSET_V1_CORE_ENTRYPOINT", "note": "issue/redeem/deposit/internalTransfer; attack calls are INTERNAL so Core top-level tx list misses them", "polled": false },
+    "transfer_proxy": { "address": "0xSET_V1_TRANSFER_PROXY",  "note": "not polled", "polled": false },
+    "vault":          { "address": "0xSET_V1_VAULT",           "note": "single global custodian; donate leg lands here; too noisy to poll directly", "polled": false }
+  },
+  "targets": [
+    { "address": "0xYOUR_REBALANCING_SET", "chain": "ethereum", "name": "EXAMPLE rebalancing set", "ticker": "EXAMPLE", "rank": 1, "hit_status": "not publicly hit", "note": "replace with sets you are authorized to monitor", "verified": "eth_getCode" }
+  ]
+}
