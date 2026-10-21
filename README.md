@@ -1,5 +1,7 @@
 # graveyard
 
+[![canaries](https://github.com/weiscadence/graveyard/actions/workflows/canaries.yml/badge.svg)](https://github.com/weiscadence/graveyard/actions/workflows/canaries.yml)
+
 **A defensive map of an attack surface that public incident databases don't break out.**
 
 Dormant DeFi contracts with stranded value — deprecated, immutable, unpausable,
