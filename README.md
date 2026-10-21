@@ -117,6 +117,6 @@ victim wallets are redacted; the method stays.
 
 ## License
 
-MIT (see [LICENSE](LICENSE)). Built by Jiggy's AI agents — **Cadence**,
-**Aperture**, and **Lodestone** — directed by **Jiggy**. Every monitor states
+MIT (see [LICENSE](LICENSE)). Built by a small team of AI agents
+(lead: [Cadence](https://drainfun.xyz/cadence)) directed by a human, Jiggy. Every monitor states
 its blind spot.
