@@ -74,6 +74,59 @@ Established detection methods and their signatures:
 **B. Economic/behavioral signatures:**
 - **Gas bidding anomalies:** sudden gas-price spikes around a block (bidding wars), txs paying tips far above the base fee — the tip is the bid for ordering. Identical-parameter txs with escalating gas = frontrunning race. (https://www.7blocklabs.com/blog/detecting-mev-in-your-protocol)
 - **Time-to-execution deltas, gas deviation from network median, sender MEV-reputation** are the recommended ML features for catching what rule-based systems miss. (https://clawdbytes.com/article/2026-10-01-mev-detection-with-ai-a-practical-guide)
-- **Failed-tx rate:** searchers historically left reverted txs on-chain (pre-bundles, this was the PG
+- **Failed-tx rate:** searchers historically left reverted txs on-chain (pre-bundles, this was the PGA era: bots bid fees up in priority gas auctions and the losers' transactions still landed or reverted, paying gas). Flash Boys 2.0 documented these priority gas auctions as the dominant competition mode for DEX arbitrage bots. (https://arxiv.org/abs/1904.05234) Bundles changed this: Flashbots bundles are all-or-nothing and any revert invalidates the bundle unless the hash is listed as allowed to revert (https://docs.flashbots.net/flashbots-auction/advanced/understanding-bundles), and Flashbots Protect only includes transactions that do not revert, so users pay nothing for failures (https://docs.flashbots.net/flashbots-protect/overview). Consequence for detection: a modern searcher's failures mostly never reach the chain, so a low on-chain revert rate is not evidence against searcher-like behavior. A *high* rate of public reverts on one target family suggests the operator is probing through the public mempool or plain RPC rather than a bundle path.
 
-> **This committed copy is incomplete.** The note was cut mid-sentence when it was saved (the tool output it came from was truncated; about 10,700 characters are missing) and the full text was not recovered. Everything above the cut is as written; the rest of section B and anything after it is absent, so do not read the file as a complete survey.
+> **Reconstructed 2026-11-17:** the original text after this point was lost to a write-time truncation (the file was cut mid-sentence on 2026-10-18; no intact copy exists). Everything below was rewritten from the cited sources on 2026-11-17, not recovered. Section numbering and content may differ from the original.
+
+**C. Signatures that distinguish a scanner from a searcher.** (Analytical section; the premises are cited, the comparison is this paper's inference.)
+- A searcher's trigger is external and recent: a pending transaction, an oracle update, a price move. Searchers watch pending transactions and react to them (https://arxiv.org/html/2510.14642v1; https://docs.flashbots.net/flashbots-auction/advanced/understanding-bundles shows a bundle that embeds a mempool oracle update). A scanner's trigger is internal: its own target inventory. So the first discriminator is **trigger absence**: interactions with a dormant contract that follow no relevant mempool event and no price or oracle movement.
+- Searchers specialize narrowly (one selector on one address in the Chainlink SVR example, https://docs.chain.link/data-feeds/svr-feeds/searcher-onboarding-ethereum). A scanner that touches many unrelated deprecated contracts with the same read-then-simulate pattern is the opposite of that specialization, and looks more like a "generalized" actor. Paradigm describes generalized frontrunners that copy any profitable transaction by swapping in their own address and even replay execution traces, which is the closest documented searcher behavior to indiscriminate scanning. (https://www.paradigm.xyz/writing/ethereum-is-a-dark-forest)
+- Permissionless-state hazards are known to attract this class of bot. In the Paradigm account, an unclaimed balance recoverable by anyone calling a public `burn` function sat undetected on-chain for about eight hours, but any attempt to claim it publicly risked being copied and front-run in flight. (https://www.paradigm.xyz/writing/ethereum-is-a-dark-forest) The same asymmetry applies to stranded value in deprecated contracts: stale state is quiet, a visible claim is not.
+
+---
+
+## 5. Detection playbook for a scanner-like operator
+
+Design rule: assume the operator is patient, cheap to run (section 3), and acts through private paths when it acts. Detect the *inventory-driven reconnaissance*, not the exploit.
+
+**5.1 Observable layer 1: read-side reconnaissance (weak, high volume).** Repeated `eth_call` and trace-style reads against deprecated contracts are invisible on-chain, but they leave footprints at RPC providers, not on the chain. Managed RPC providers meter trace calls much more heavily than plain `eth_call` (https://www.dwellir.com/blog/mev-arbitrage-bot-infrastructure), so a provider-side view is where read recon would show up, and we do not have that view. Treat read-side recon as unobservable from public data. (OPEN, see section 7.)
+
+**5.2 Observable layer 2: write-side probes (the main signal).** What is visible is what lands on-chain:
+1. *Wallet-to-target graph.* Maintain, for each watched deprecated contract, the set of external callers. Flag callers that touch more than one unrelated deprecated contract within a window. Single-target callers are users or owners; multi-target callers with no shared product relationship are scanner candidates. This is the analog of the searcher classifiers' duplicate-sender and pool-overlap checks. (https://deepwiki.com/jinmel/brontes/2.3-mev-detection-and-analysis)
+2. *Trigger test.* For each flagged call, check the preceding blocks for a relevant mempool or price event. No trigger plus a state-mutating call on a dormant contract is the section 2 discriminator.
+3. *Atomic-sequence shape.* Within one transaction, the borrow, deposit or donate, mutate, redeem pattern from `wormhole-20261018-scanner.md` is the bundle shape from section 1. Brontes-style inspectors already label atomic arbitrage and liquidation paths; a custom inspector for "flash-loan wrapped call into a deprecated contract" is the missing piece. (https://deepwiki.com/jinmel/brontes/2.3-mev-detection-and-analysis)
+4. *Gas posture.* Competitive searchers show tips far above base fee; a scanner with no competition should show **median-or-below** gas deviation. Unusually *calm* gas on an otherwise searcher-shaped transaction is itself a weak flag. Gas deviation from the network median and time-to-execution deltas are the recommended features. (https://clawdbytes.com/article/2026-10-01-mev-detection-with-ai-a-practical-guide; https://www.7blocklabs.com/blog/detecting-mev-in-your-protocol)
+5. *Funding trail.* Fresh wallet, funded shortly before first probe, same funder across wallets. This is standard attribution practice; no source in this paper's set quantifies it, so treat it as a heuristic to validate, not a finding.
+
+**5.3 Observable layer 3: tooling.** EigenPhi labeling, Brontes, MEV-Inspect-py and Etherscan MEV labels cover sandwich, arbitrage and liquidation, not "dormant-contract probing". Expect the scanner's transactions to be **unlabeled** by these tools, so absence of an MEV label is the default, not exculpatory. (https://dev.to/frb_research/how-to-detect-mev-in-your-trades-2026-a-practical-guide-1okd)
+
+**5.4 Scoring sketch (inference, not from a source).** Score a wallet on: number of distinct unrelated deprecated targets touched; fraction of calls with no preceding trigger; presence of atomic flash-loan-wrapped sequences; gas calmness; shared funder with other flagged wallets. Review manually above a threshold; never auto-act. Calibrate on known searcher wallets first, so the baseline false-positive rate against ordinary MEV bots is measured rather than guessed.
+
+---
+
+## 6. Mempool visibility needed to see what the operator sees
+
+**6.1 The public mempool is a partial view.** There is no global mempool; each node holds its own and transactions gossip peer to peer (https://www.monoceros.com/insights/maximal-extractable-value-book?ref=bankless.ghost.io). A live feed built on a single node concedes this itself: a transaction that reached other nodes but not that one is counted as never seen, which the author names as the largest unquantified source of error, and a hash is only remembered for five minutes. (https://darkflow.martincasais.com/)
+
+**6.2 Most DeFi flow does not touch it.** One benchmark study of private RPCs cites about 80 percent of DeFi interactions using private RPCs post-merge, which submit directly to builders and skip the public mempool (https://arxiv.org/html/2505.19708v1). Flashbots Protect states the same design: transactions go to a private mempool hidden from front-running and sandwich bots. (https://docs.flashbots.net/flashbots-protect/overview) A 2022 empirical study on private transactions describes the same property, that such a transaction is sent directly to miners and does not appear in the mempool of normal nodes. (https://arxiv.org/pdf/2208.02858) Paradigm's rescue is a worked example of why a careful actor goes private or obfuscated: they split the action into a set transaction and a get transaction in the same block, with the burn buried as an internal call, to avoid being copied. (https://www.paradigm.xyz/writing/ethereum-is-a-dark-forest)
+
+**6.3 What this means for us.** If the scanner operator acts the way the careful actors above do, the exploit transaction will be **first visible when the block lands**. Mempool watching therefore cannot give pre-warning on the final step. What it can still do:
+- Catch *unprivate* probing: test transactions, early failed attempts, and anything the operator sends via plain RPC (section 4B, failed-tx rate).
+- Provide a *negative* signal: a landed transaction with no prior public sighting is consistent with private submission. This is an upper bound on private flow, not a count, for the single-vantage reasons in 6.1.
+- Let us compare vantage points: two nodes with different peer sets, or a public mempool archive, turn the "never seen" figure into an estimate, as the darkflow author says of their own tool. (https://darkflow.martincasais.com/)
+
+**6.4 Minimum viable visibility, in order of cost.**
+1. Block-level only: a labeled-transaction feed plus our own inspector (section 5.2). Cheapest, catches post-hoc.
+2. One well-peered geth node with an enlarged txpool and a pending-transaction subscription (the setup in section 3). Adds public-mempool pre-sighting for non-private probes. (https://dev.to/vathsaman/mempool-monitoring-for-mev-bots-technical-implementation-guide-4k38)
+3. Second vantage point, to measure propagation error.
+4. Private orderflow feeds (MEV-Share event stream, builder data): the only route to see flow a searcher with feed access sees. These are access-gated and carry terms of use; do not assume they are available to us. The Chainlink SVR example shows searchers consuming the MEV-Share event stream. (https://docs.chain.link/data-feeds/svr-feeds/searcher-onboarding-ethereum)
+
+---
+
+## 7. Open items and limits
+
+- **Provider-side recon is not observable** from public data (5.1). Only an RPC vendor could see read-pattern anomalies.
+- **No baseline** for how many ordinary wallets touch multiple deprecated contracts. Without it the multi-target discriminator (5.2) has an unknown false-positive rate.
+- **Funding-trail and gas-calmness heuristics** are inferences here; no cited source validates them for this use.
+- **Percent figures** (about 80 percent private RPC share, 10 to 50 percent searcher retention) come from single sources and may be dated; recheck before quoting.
+- **Policy:** this paper contains no live target list. Target lists for deprecated-but-funded contracts are withheld from this public repo by policy.
