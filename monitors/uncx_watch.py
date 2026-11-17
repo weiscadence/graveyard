@@ -61,7 +61,8 @@ def is_exploit_sequence(txs, window_hours=SEQ_WINDOW_HOURS):
     """True if txs contain create+release+cancel concentrated within window_hours.
 
     The wallet must touch all three method families AND compress them into the
-    window. Returns (hit, span_hours). The 2026-10-18 pagination backfill
+    window. Returns (hit, span_hours); span_hours is None when a timestamp could
+    not be parsed, and that case is a hit (unknown is not clean). The 2026-10-18 pagination backfill
     showed why: a wallet doing create/cancel/release scattered over months
     (0x037287a8…, Apr+Sep 2026, pre-exploit normal usage) tripped the
     windowless version. A real exploit sequence runs in minutes to hours.
@@ -69,9 +70,12 @@ def is_exploit_sequence(txs, window_hours=SEQ_WINDOW_HOURS):
     methods = " ".join(t["method"].split("(")[0].lower() for t in txs)
     if not ("create" in methods and "release" in methods and "cancel" in methods):
         return False, 0.0
-    hs = [h for h in (ts_hours(t["timestamp"]) for t in txs) if h is not None]
-    if not hs:
-        return False, 0.0
+    hs = [ts_hours(t.get("timestamp")) for t in txs]
+    if any(h is None for h in hs):
+        # Fail closed: all three method families are present but at least one
+        # timestamp is unreadable, so "scattered over months" cannot be shown.
+        # An unknown span is reported as a hit (span None), never as clean.
+        return True, None
     span = (max(hs) - min(hs)) if len(hs) > 1 else 0.0
     return span <= window_hours, span
 
@@ -334,7 +338,9 @@ def main():
             if hit:
                 seq_alerts.append(
                     f"ALERT [{chain}] EXPLOIT-SEQUENCE: wallet {w[:14]} executed "
-                    f"create->release->cancel pattern ({len(wt)} txs, {span:.1f}h span)")
+                    f"create->release->cancel pattern ({len(wt)} txs, "
+                    + (f"{span:.1f}h span)" if span is not None
+                       else "span UNKNOWN: unparseable timestamp, treated as a hit)"))
                 sus.extend(wt)
         # Single exploit-method calls are noted but do NOT alert alone.
         noted = 0

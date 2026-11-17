@@ -76,6 +76,50 @@ MOCK_COLLECTIONS = {
     "0x00000000000000000000000000000000000000d4",
     "0x00000000000000000000000000000000000000d5",
 }
+
+# keccak-256 (Ethereum codehash). pycryptodome when installed, else the pure-Python
+# permutation below. hashlib.sha3_256 is NOT keccak (different padding), and the old
+# fallback computed it and then discarded it, which silently switched the clone
+# check off on any box without pycryptodome.
+_KECCAK_RC = [0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
+              0x000000000000808B, 0x0000000080000001, 0x8000000080008081, 0x8000000000008009,
+              0x000000000000008A, 0x0000000000000088, 0x0000000080008009, 0x000000008000000A,
+              0x000000008000808B, 0x800000000000008B, 0x8000000000008089, 0x8000000000008003,
+              0x8000000000008002, 0x8000000000000080, 0x000000000000800A, 0x800000008000000A,
+              0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008]
+_KECCAK_ROT = [[0, 36, 3, 41, 18], [1, 44, 10, 45, 2], [62, 6, 43, 15, 61],
+               [28, 55, 25, 21, 56], [27, 20, 39, 8, 14]]
+_M64 = (1 << 64) - 1
+
+def _keccak256_pure(data):
+    rate = 136
+    msg = bytearray(data) + b"\x01"            # keccak pad10*1 (0x01, not SHA-3's 0x06)
+    msg += b"\x00" * (-len(msg) % rate)
+    msg[-1] |= 0x80
+    A = [[0] * 5 for _ in range(5)]
+    rol = lambda v, n: ((v << n) | (v >> (64 - n))) & _M64 if n else v
+    for off in range(0, len(msg), rate):
+        for i in range(rate // 8):
+            A[i % 5][i // 5] ^= int.from_bytes(msg[off + 8 * i: off + 8 * i + 8], "little")
+        for rc in _KECCAK_RC:
+            C = [A[x][0] ^ A[x][1] ^ A[x][2] ^ A[x][3] ^ A[x][4] for x in range(5)]
+            D = [C[(x - 1) % 5] ^ rol(C[(x + 1) % 5], 1) for x in range(5)]
+            A = [[A[x][y] ^ D[x] for y in range(5)] for x in range(5)]
+            B = [[0] * 5 for _ in range(5)]
+            for x in range(5):
+                for y in range(5):
+                    B[y][(2 * x + 3 * y) % 5] = rol(A[x][y], _KECCAK_ROT[x][y])
+            A = [[B[x][y] ^ ((~B[(x + 1) % 5][y]) & B[(x + 2) % 5][y]) for y in range(5)] for x in range(5)]
+            A[0][0] ^= rc
+    return b"".join(A[i % 5][i // 5].to_bytes(8, "little") for i in range(4))
+
+def keccak256_hex(data):
+    try:
+        from Crypto.Hash import keccak as _keccak
+        return _keccak.new(digest_bits=256, data=data).hexdigest()
+    except ImportError:
+        return _keccak256_pure(data).hex()
+
 # keccak256(runtime bytecode) of the same two mock collections, measured
 # 2026-10-18 via eth_getCode on Polygon (read-only). Catches mock CLONES:
 # exploit devs redeploy the same mock contract for the next probe.
@@ -135,13 +179,7 @@ def classify_settlement(chain_rpc, sender, seller, collection):
     except Exception:
         code = "0x"
     if code != "0x":
-        import hashlib
-        try:
-            from Crypto.Hash import keccak as _keccak
-            kh = _keccak.new(digest_bits=256, data=bytes.fromhex(code[2:])).hexdigest()
-        except ImportError:
-            kh = hashlib.sha3_256(bytes.fromhex(code[2:])).hexdigest()  # NOT keccak; best-effort only
-            kh = None
+        kh = keccak256_hex(bytes.fromhex(code[2:]))
         if kh and kh in MOCK_CODEHASHES:
             return "TESTING", f"collection {collection[:12]} bytecode hash matches a known mock (clone redeploy)"
     # third-party seller EOA = the playbook's flip-to-targeting fingerprint

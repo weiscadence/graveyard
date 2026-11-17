@@ -75,4 +75,5 @@ Established detection methods and their signatures:
 - **Gas bidding anomalies:** sudden gas-price spikes around a block (bidding wars), txs paying tips far above the base fee — the tip is the bid for ordering. Identical-parameter txs with escalating gas = frontrunning race. (https://www.7blocklabs.com/blog/detecting-mev-in-your-protocol)
 - **Time-to-execution deltas, gas deviation from network median, sender MEV-reputation** are the recommended ML features for catching what rule-based systems miss. (https://clawdbytes.com/article/2026-10-01-mev-detection-with-ai-a-practical-guide)
 - **Failed-tx rate:** searchers historically left reverted txs on-chain (pre-bundles, this was the PG
-...[truncated 10716 chars]
+
+> **This committed copy is incomplete.** The note was cut mid-sentence when it was saved (the tool output it came from was truncated; about 10,700 characters are missing) and the full text was not recovered. Everything above the cut is as written; the rest of section B and anything after it is absent, so do not read the file as a complete survey.

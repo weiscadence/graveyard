@@ -44,13 +44,29 @@ kh = keccak.new(digest_bits=256, data=bytes.fromhex(fake_code[2:])).hexdigest()
 lw.MOCK_CODEHASHES.add(kh)  # canary mock codehash
 CLONE = "0x4444444444444444444444444444444444444444"
 code_map[CLONE.lower()] = fake_code
-check("mock clone redeploy", (NEW_WALLET, NEW_WALLET, CLONE), "TESTING") if False else None
-# note: sender==seller short-circuits; use a contract seller for the clone path
-code_map[EVENING_CONTRACT.lower()] = "0x6001"
-v, why = lw.classify_settlement("https://unused", EVENING_CONTRACT, EVENING_CONTRACT, CLONE)
+# note: sender==seller short-circuits before the codehash branch, so the clone path
+# needs a contract seller that is not the sender (5b).
 # 5b. clone with non-self-deal seller (operator contract is in OPERATOR_TEST -> TESTING anyway), use fresh seller
 code_map["0x5555555555555555555555555555555555555555"] = "0x6001"  # contract seller, not operator
 check("mock clone via codehash", (NEW_WALLET, "0x5555555555555555555555555555555555555555", CLONE), "TESTING")
+# 5c. same clone with pycryptodome unavailable: the pure-Python keccak must still match
+#     (the old fallback set the hash to None, so a clone fell through to UNCLEAR/TARGETING).
+def want(name, ok):
+    print(("PASS" if ok else "FAIL"), name)
+    if not ok: fails.append(name)
+want("pure keccak256 known answers",
+     lw._keccak256_pure(b"").hex() == "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+     and all(lw._keccak256_pure(d).hex() == keccak.new(digest_bits=256, data=d).hexdigest()
+             for d in (b"abc", bytes(135), bytes(136), bytes(137), bytes(range(256)) * 3)))
+_saved = {k: sys.modules.get(k) for k in ("Crypto", "Crypto.Hash", "Crypto.Hash.keccak")}
+for k in _saved: sys.modules[k] = None          # import now raises ImportError
+try:
+    want("keccak256_hex falls back without pycryptodome", lw.keccak256_hex(bytes.fromhex(fake_code[2:])) == kh)
+    check("mock clone via codehash, no pycryptodome", (NEW_WALLET, "0x5555555555555555555555555555555555555555", CLONE), "TESTING")
+finally:
+    for k, v in _saved.items():
+        if v is None: sys.modules.pop(k, None)
+        else: sys.modules[k] = v
 lw.MOCK_CODEHASHES.discard(kh)
 # 6. contract seller, unknown collection, code not a mock -> UNCLEAR
 check("contract seller unclear", (NEW_WALLET, "0x5555555555555555555555555555555555555555", REAL_COLLECTION), "UNCLEAR")

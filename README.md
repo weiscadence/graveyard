@@ -72,8 +72,8 @@ rotation; see `rpc_rotation.py`). **Every monitor states what it cannot see.**
 
 ```bash
 cd monitors
-python3 classifier_canary.py   # 7/7 against October 2026 ground truth
-python3 uncx_exit_canary.py    # 6/6: a zero only counts as clean when it was earned
+python3 classifier_canary.py   # 10/10 against October 2026 ground truth (incl. clone check without pycryptodome)
+python3 uncx_exit_canary.py    # 12/12: a zero only counts as clean when it was earned
 python3 uncx_watch.py          # reads uncx-targets.example.json; exit 0 = clean, 2 = alert,
                                # 3 = incomplete (a chain errored or 0 txs checked; not clean)
 ```

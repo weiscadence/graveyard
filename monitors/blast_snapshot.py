@@ -9,7 +9,7 @@ canonical bridge address so any later watch can detect anomalous flows.
 Usage:  python3 blast_snapshot.py [out.json]
 Reads only: eth_call(balanceOf) + eth_getBalance. No transactions.
 """
-import json, sys, time, os
+import json, re, sys, time, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from rpc_rotation import rpc_call
 
@@ -32,12 +32,22 @@ TARGETS = {
     "0xOLD_GNOSIS_SAFE_DEPOSIT_ADDR":   ("OldGnosisSafeDeposit",  [USDC, USDT, DAI, WETH]),
 }
 
+def placeholders(targets):
+    """Addresses that are not 0x + 40 hex chars, i.e. the withheld placeholders above."""
+    return [a for a in targets if not re.fullmatch(r"0x[0-9a-fA-F]{40}", a)]
+
 def bal_of(token, holder):
     data = "0x70a08231" + holder[2:].lower().rjust(64, "0")
     r = rpc_call("ethereum", "eth_call", [{"to": token, "data": data}, "latest"])
     return int(r, 16) if r else None
 
 def main():
+    bad = placeholders(TARGETS)
+    if bad:
+        # Without this, bal_of() builds calldata from the placeholder text and the
+        # snapshot is written full of null balances that look like a real baseline.
+        sys.exit("blast_snapshot: TARGETS still has placeholder addresses, fill them in first: "
+                 + ", ".join(bad))
     block = rpc_call("ethereum", "eth_blockNumber", [])
     snap = {"taken_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "block": block, "targets": {}}
